@@ -1,0 +1,48 @@
+name: Linear Integration with Repository Mapping
+
+on:
+  pull_request:
+    types: [opened, closed]
+
+jobs:
+  map-and-call-linear-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Map Repository to Linear Team
+        id: map-repo
+        run: |
+          # Repository name (format: owner/repo)
+          REPO="${{ github.repository }}"
+          echo "Repository: $REPO"
+          
+          # Define repository to team mapping
+          case "$REPO" in
+            "your-org/repo1")
+              TEAM_ID="team_id_for_repo1"
+              ;;
+            "your-org/repo2")
+              TEAM_ID="team_id_for_repo2"
+              ;;
+            "your-org/repo3")
+              TEAM_ID="team_id_for_repo3"
+              ;;
+            # Add more mappings as needed
+            *)
+              # Default team ID if not explicitly mapped
+              TEAM_ID="default_team_id"
+              ;;
+          esac
+          
+          echo "Mapped to Linear Team ID: $TEAM_ID"
+          echo "team_id=$TEAM_ID" >> $GITHUB_OUTPUT
+    
+    outputs:
+      team_id: ${{ steps.map-repo.outputs.team_id }}
+      
+  call-linear-integration:
+    needs: map-and-call-linear-integration
+    uses: your-org/linear-integration/.github/workflows/linear-integration.yml@main
+    with:
+      team_id: ${{ needs.map-and-call-linear-integration.outputs.team_id }}
+    secrets:
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
