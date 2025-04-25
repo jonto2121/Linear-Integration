@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         description: "The Linear team ID to create issues in"
+      project_id:
+        required: false
+        type: string
+        description: "The Linear project ID to assign the issue to (optional)"
     secrets:
       LINEAR_API_KEY:
         required: true
@@ -72,23 +76,30 @@ jobs:
           
           echo "GitHub user: $PR_AUTHOR, Linear user ID: ${LINEAR_USER_ID:-none}"
           
-          # Build assignee parameter if user mapping was found
-          ASSIGNEE_PARAM=""
+          # Set up parameters for mutation
+          PARAMS=""
+          
+          # Add assignee if available
           if [ ! -z "$LINEAR_USER_ID" ]; then
-            ASSIGNEE_PARAM=", assigneeId: \\\"$LINEAR_USER_ID\\\""
+            PARAMS="$PARAMS, assigneeId: \\\"$LINEAR_USER_ID\\\""
           fi
           
-          # Build state parameter if In Progress state was found
-          STATE_PARAM=""
+          # Add state if available
           if [ ! -z "$IN_PROGRESS_STATE_ID" ]; then
-            STATE_PARAM=", stateId: \\\"$IN_PROGRESS_STATE_ID\\\""
+            PARAMS="$PARAMS, stateId: \\\"$IN_PROGRESS_STATE_ID\\\""
+          fi
+          
+          # Add project if provided
+          if [ ! -z "${{ inputs.project_id }}" ]; then
+            PARAMS="$PARAMS, projectId: \\\"${{ inputs.project_id }}\\\""
+            echo "Adding to Linear project: ${{ inputs.project_id }}"
           fi
           
           # Title format: PR Title [PR-Number] [Repo]
           ISSUE_TITLE="${PR_TITLE} [PR-${PR_NUMBER}] [${REPO_NAME}]"
           
-          # Create Linear issue via API including state and assignee if available
-          QUERY="{\"query\":\"mutation CreateIssue(\$title: String!, \$description: String!, \$teamId: String!) { issueCreate(input: { title: \$title, description: \$description, teamId: \$teamId$STATE_PARAM$ASSIGNEE_PARAM }) { success issue { id identifier url } } }\",\"variables\":{\"title\":\"${ISSUE_TITLE}\",\"description\":\"${DESCRIPTION}\",\"teamId\":\"${{ inputs.team_id }}\"}}"
+          # Create Linear issue via API including state, assignee, and project if available
+          QUERY="{\"query\":\"mutation CreateIssue(\$title: String!, \$description: String!, \$teamId: String!) { issueCreate(input: { title: \$title, description: \$description, teamId: \$teamId$PARAMS }) { success issue { id identifier url } } }\",\"variables\":{\"title\":\"${ISSUE_TITLE}\",\"description\":\"${DESCRIPTION}\",\"teamId\":\"${{ inputs.team_id }}\"}}"
           
           echo "Query: $QUERY"
           
